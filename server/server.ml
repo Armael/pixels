@@ -3,7 +3,7 @@ let (let$) = Result.bind
 
 (* incoming UDP pixel drawing commands *)
 
-type pixel = { x : int; y : int; color : Sdl.color }
+type pixel = { x : int; y : int; r : int; g : int; b : int }
 
 (* packet size in bytes *)
 let packet_size = 2 (* x *) + 2 (* y *) + 3 (* color *)
@@ -15,7 +15,7 @@ let pixel_of_bytes (buf : Bytes.t) (off : int) (len : int) : pixel option =
     let r = Bytes.get_uint8 buf (off + 4) in
     let g = Bytes.get_uint8 buf (off + 5) in
     let b = Bytes.get_uint8 buf (off + 6) in
-    Some { x; y; color = Sdl.Color.create ~r ~g ~b ~a:255 }
+    Some { x; y; r; g; b }
   end
 
 let pixels_of_bytes (buf : Bytes.t) (len : int) : pixel list =
@@ -69,10 +69,7 @@ let rec udp_loop (sock : Unix.file_descr) (st : state) =
 
 let render_pixel renderer st px =
   let$ () =
-    Sdl.set_render_draw_color renderer
-      (Sdl.Color.r px.color) (Sdl.Color.g px.color) (Sdl.Color.b px.color)
-      255
-  in
+    Sdl.set_render_draw_color renderer px.r px.g px.b 255 in
   Sdl.render_fill_rect renderer
     (Some (Sdl.Rect.create ~x:(px.x * st.scale) ~y:(px.y * st.scale)
             ~w:st.scale ~h:st.scale))
