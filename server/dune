@@ -1,0 +1,4 @@
+(executable
+  (name server)
+  (libraries tsdl unix)
+  (flags (:standard -alert -unstable)))

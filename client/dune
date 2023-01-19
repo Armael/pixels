@@ -1,0 +1,3 @@
+(executables
+  (names client client2)
+  (libraries unix))
