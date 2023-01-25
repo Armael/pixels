@@ -1,0 +1,30 @@
+opam-version: "2.0"
+version: "0.1"
+synopsis: "Pixels"
+description: "Pixels"
+maintainer: ["Armaël Guéneau <armael.gueneau@ens-lyon.org>"]
+authors: ["Armaël Guéneau <armael.gueneau@ens-lyon.org>"]
+license: "MIT"
+homepage: "https://github.com/Armael/pixels"
+bug-reports: "https://github.com/Armael/pixels/issues"
+depends: [
+  "ocaml" {>= "5.0.0"}
+  "dune" {>= "3.0"}
+  "tsdl" {>= "0.9"}
+  "base-unix"
+]
+build: [
+  ["dune" "subst"] {dev}
+  [
+    "dune"
+    "build"
+    "-p"
+    name
+    "-j"
+    jobs
+    "@install"
+    "@runtest" {with-test}
+    "@doc" {with-doc}
+  ]
+]
+dev-repo: "git+https://github.com/Armael/pixels.git"
