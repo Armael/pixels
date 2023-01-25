@@ -23,7 +23,7 @@ impl Color {
     };
 
     #[inline]
-    fn to_buf(&self, into: &mut [u8; 3]) {
+    fn write_to_buf(&self, into: &mut [u8; 3]) {
         into[0] = self.r;
         into[1] = self.g;
         into[2] = self.b;
@@ -38,7 +38,7 @@ pub struct Point {
 
 impl Point {
     #[inline]
-    fn to_buf(&self, into: &mut [u8; 4]) {
+    fn write_to_buf(&self, into: &mut [u8; 4]) {
         let x = self.x.to_be_bytes();
         into[..2].copy_from_slice(&x[..]);
         let y = self.y.to_be_bytes();
@@ -60,9 +60,9 @@ impl Pixel {
         Self { point, color }
     }
 
-    fn to_buf(&self, into: &mut [u8; PIXEL_SIZE]) {
-        self.point.to_buf((&mut into[0..4]).try_into().unwrap());
-        self.color.to_buf((&mut into[4..7]).try_into().unwrap());
+    fn write_to_buf(&self, into: &mut [u8; PIXEL_SIZE]) {
+        self.point.write_to_buf((&mut into[0..4]).try_into().unwrap());
+        self.color.write_to_buf((&mut into[4..7]).try_into().unwrap());
     }
 }
 
@@ -82,7 +82,7 @@ impl Client {
     /// Send a command to the server, asking it to draw the given pixel.
     pub fn draw(&mut self, pixel: Pixel) -> io::Result<()> {
         let mut buf = [0u8; PIXEL_SIZE];
-        pixel.to_buf(&mut buf);
+        pixel.write_to_buf(&mut buf);
         self.sock.send(&buf[..])?;
         Ok(())
     }
@@ -96,7 +96,7 @@ mod test {
     fn pix_to_buf() {
         let mut buf = [0u8; PIXEL_SIZE];
         let pix = Pixel::new(Point { x: 0, y: 1 }, Color::BLUE);
-        pix.to_buf(&mut buf);
+        pix.write_to_buf(&mut buf);
         assert_eq!([0, 0, 0, 1, 0, 0, 255], buf);
     }
 }
