@@ -36,12 +36,12 @@ let read_pixels : Unix.file_descr -> pixel list * Unix.sockaddr =
 
 type state =
   { w : int; h : int; scale : int;
-    pixel_budget : int; max_age : float;
+    pixel_budget : int; max_age : float; decay : float;
     pixels : (Unix.inet_addr, (pixel * float (* age *)) list) Hashtbl.t;
     mutex : Mutex.t }
 
-let make_state ~w ~h ~scale ~pixel_budget ~max_age =
-  { w; h; scale; pixel_budget; max_age;
+let make_state ~w ~h ~scale ~pixel_budget ~max_age ~decay =
+  { w; h; scale; pixel_budget; max_age; decay;
     pixels = Hashtbl.create 37;
     mutex = Mutex.create () }
 
@@ -67,9 +67,8 @@ let rec udp_loop (sock : Unix.file_descr) (st : state) =
 
 (* drawing a frame *)
 
-let render_pixel renderer st px =
-  let$ () =
-    Sdl.set_render_draw_color renderer px.r px.g px.b 255 in
+let render_pixel renderer st px alpha =
+  let$ () = Sdl.set_render_draw_color renderer px.r px.g px.b alpha in
   Sdl.render_fill_rect renderer
     (Some (Sdl.Rect.create ~x:(px.x * st.scale) ~y:(px.y * st.scale)
             ~w:st.scale ~h:st.scale))
@@ -95,17 +94,18 @@ let draw_frame renderer st =
   let now = Unix.gettimeofday () in
   Mutex.lock st.mutex;
   Hashtbl.filter_map_inplace (fun _ pixels ->
-    Some (take_pixels (now -. st.max_age) st.pixel_budget pixels)
+    Some (take_pixels (now -. st.max_age -. st.decay) st.pixel_budget pixels)
   ) st.pixels;
   let pixels_to_draw =
     Hashtbl.to_seq_values st.pixels |> List.of_seq
     |> reduce (List.merge (fun (_, t1) (_, t2) -> Float.compare t2 t1)) []
   in
   Mutex.unlock st.mutex;
-  List.iter (fun (px, _) ->
-    Result.value ~default:()
-      (render_pixel renderer st px)
-  ) (List.rev pixels_to_draw);
+  List.iter (fun (px, time) ->
+    let decayed = Float.min (time -. (now -. st.max_age -. st.decay)) st.decay in
+    let alpha = int_of_float (decayed *. 255. /. st.decay) in
+    Result.value ~default:() (render_pixel renderer st px alpha)
+  ) (List.rev pixels_to_draw); (* XXX behavior with alpha blending in case of overlapping pixels? *)
   Ok ()
 
 (* sdl main loop *)
@@ -134,7 +134,8 @@ let () =
   let scale = ref 10 in
   let port = ref 4242 in
   let nb_clients = ref 15 in
-  let max_age = ref 20. in
+  let max_age = ref 19. in
+  let decay = ref 1. in
   Arg.(parse [
     "-w", Set_int w, Printf.sprintf "canvas width (default: %d)" !w;
     "-h", Set_int h, Printf.sprintf "canvas height (default: %d)" !h;
@@ -146,12 +147,18 @@ let () =
     "--max-age", Set_float max_age,
     Printf.sprintf "maximum age for a pixel (in seconds) (default: %f)"
       !max_age;
+    "--decay", Set_float decay,
+    Printf.sprintf "pixel decay time (in seconds) (default: %f)"
+      !decay;
   ] (fun _ -> failwith "unexpected argument")
     (Printf.sprintf "usage: %s [..options]" Sys.argv.(0))
   );
 
   let pixel_budget = !w * !h / !nb_clients in
-  let st = make_state ~w:!w ~h:!h ~scale:!scale ~pixel_budget ~max_age:!max_age in
+  let st =
+    make_state ~w:!w ~h:!h ~scale:!scale ~pixel_budget
+      ~max_age:!max_age ~decay:!decay
+  in
 
   let sock = Unix.(socket PF_INET SOCK_DGRAM 0) in
   Unix.bind sock Unix.(ADDR_INET (Unix.inet_addr_of_string "0.0.0.0", !port));
@@ -170,6 +177,7 @@ let () =
       Sdl.create_renderer ~flags:Sdl.Renderer.(accelerated + presentvsync)
         window
     in
+    let$ () = Sdl.set_render_draw_blend_mode renderer Sdl.Blend.mode_blend in
     let ev = Sdl.Event.create () in
     let$ () = sdl_loop window renderer ev st in
     Sdl.destroy_window window;
