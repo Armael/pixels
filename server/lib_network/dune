@@ -1,0 +1,4 @@
+(library
+  (name pixels_network)
+  (libraries unix)
+  (flags (:standard -alert -unstable)))

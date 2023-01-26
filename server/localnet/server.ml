@@ -1,30 +1,7 @@
+open Pixels_network
+open Pixels_graphics
 open Tsdl
 let (let$) = Result.bind
-
-(* incoming UDP pixel drawing commands *)
-
-type pixel = { x : int; y : int; r : int; g : int; b : int }
-
-(* packet size in bytes *)
-let packet_size = 2 (* x *) + 2 (* y *) + 3 (* color *)
-
-let pixel_of_bytes (buf : Bytes.t) (off : int) (len : int) : pixel option =
-  if off + packet_size > len then None else begin
-    let x = Bytes.get_uint16_be buf off in
-    let y = Bytes.get_uint16_be buf (off + 2) in
-    let r = Bytes.get_uint8 buf (off + 4) in
-    let g = Bytes.get_uint8 buf (off + 5) in
-    let b = Bytes.get_uint8 buf (off + 6) in
-    Some { x; y; r; g; b }
-  end
-
-let pixels_of_bytes (buf : Bytes.t) (len : int) : pixel list =
-  let rec read off len =
-    match pixel_of_bytes buf off len with
-    | None -> []
-    | Some pkt -> pkt :: read (off + packet_size) (len - packet_size)
-  in
-  read 0 len
 
 let read_pixels : Unix.file_descr -> pixel list * Unix.sockaddr =
   let udp_buffer = Bytes.create ((4096 / packet_size) * packet_size) in
@@ -67,12 +44,6 @@ let rec udp_loop (sock : Unix.file_descr) (st : state) =
 
 (* drawing a frame *)
 
-let render_pixel renderer st px alpha =
-  let$ () = Sdl.set_render_draw_color renderer px.r px.g px.b alpha in
-  Sdl.render_fill_rect renderer
-    (Some (Sdl.Rect.create ~x:(px.x * st.scale) ~y:(px.y * st.scale)
-            ~w:st.scale ~h:st.scale))
-
 let rec take_pixels after n = function
   | (px, time) :: pxs when n > 0 && time >= after ->
     (px, time) :: take_pixels after (n - 1) pxs
@@ -101,30 +72,9 @@ let draw_frame renderer st =
     |> reduce (List.merge (fun (_, t1) (_, t2) -> Float.compare t2 t1)) []
   in
   Mutex.unlock st.mutex;
-  List.iter (fun (px, time) ->
-    let decayed = Float.min (time -. (now -. st.max_age -. st.decay)) st.decay in
-    let alpha = int_of_float (decayed *. 255. /. st.decay) in
-    Result.value ~default:() (render_pixel renderer st px alpha)
-  ) (List.rev pixels_to_draw); (* XXX behavior with alpha blending in case of overlapping pixels? *)
+  render_pixels_with_age renderer pixels_to_draw
+    ~scale:st.scale ~max_age:st.max_age ~decay:st.decay ~now;
   Ok ()
-
-(* sdl main loop *)
-
-let rec consume_events ev =
-  if Sdl.poll_event (Some ev) then (
-    match Sdl.Event.(enum (get ev typ)) with
-    | `Quit -> `Quit
-    | _ -> consume_events ev
-  ) else
-    `Continue
-
-let rec sdl_loop window renderer ev st =
-  match consume_events ev with
-  | `Quit -> Ok ()
-  | `Continue ->
-    let$ () = draw_frame renderer st in
-    Sdl.render_present renderer;
-    sdl_loop window renderer ev st
 
 (* server *)
 
@@ -173,13 +123,7 @@ let () =
         ~w:(st.w * st.scale)
         ~h:(st.h * st.scale) "pixels"
         Sdl.Window.opengl in
-    let$ renderer =
-      Sdl.create_renderer ~flags:Sdl.Renderer.(accelerated + presentvsync)
-        window
-    in
-    let$ () = Sdl.set_render_draw_blend_mode renderer Sdl.Blend.mode_blend in
-    let ev = Sdl.Event.create () in
-    let$ () = sdl_loop window renderer ev st in
+    let$ () = sdl_main_loop window (fun renderer -> draw_frame renderer st) in
     Sdl.destroy_window window;
     Sdl.quit ();
     Ok ()

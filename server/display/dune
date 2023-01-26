@@ -1,0 +1,4 @@
+(executable
+  (name display)
+  (libraries pixels_network pixels_graphics tsdl unix)
+  (flags (:standard -alert -unstable)))

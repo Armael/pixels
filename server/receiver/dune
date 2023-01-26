@@ -1,0 +1,3 @@
+(executable
+  (name receiver)
+  (libraries pixels_network unix))

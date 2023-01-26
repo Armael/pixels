@@ -1,0 +1,3 @@
+(library
+  (name pixels_graphics)
+  (libraries pixels_network tsdl unix))
