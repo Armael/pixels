@@ -25,7 +25,7 @@ the server to draw one colored pixel:
 - `R`, `G`, `B`: the color of the pixel (the red, green, blue component 
   respectively)
 
-## anti-spam measures
+## anti-spam measures (only for `server/localnet`)
 
 The server implements some basic rate-limiting / anti-spam measures based on the
 client IP address, tweakable using the `--nb-clients` and `--max-age` options of
@@ -37,3 +37,19 @@ the server.
   of pixels of the screen is `S`, then the per-client limit is `S / N`.
 
 - pixels decay and disappear after some time (set by `--max-age`).
+
+## separate receiver/display (`server/{receiver,display}`)
+
+Allows putting the server receiving pixels on a different computer than the
+pixels display. The output of the receiver should be piped into the input of the
+display.
+
+Example usage:
+```
+scp _build/default/server/receiver/receiver.exe you@yourserver
+ssh -t -t you@yourserver ./receiver.exe | dune exec -- server/display/display.exe
+```
+
+(`-t -t` seems to be the adequate hack so that cancelling the whole thing with
+^C also kills the receiver process on the server side:
+https://unix.stackexchange.com/a/210356)
