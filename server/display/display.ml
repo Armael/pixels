@@ -25,11 +25,12 @@ let register_pixel st time px =
 
 let px_buf = Bytes.create packet_size
 
-let rec stdin_loop (st : state) =
-  really_input stdin px_buf 0 packet_size;
-  Option.iter (register_pixel st (Unix.gettimeofday ()))
-    (pixel_of_bytes px_buf 0 packet_size);
-  stdin_loop st
+let stdin_loop (st : state) =
+  while true do
+    really_input stdin px_buf 0 packet_size;
+    Option.iter (register_pixel st (Unix.gettimeofday ()))
+      (pixel_of_bytes px_buf 0 packet_size)
+  done
 
 (* drawing a frame *)
 

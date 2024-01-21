@@ -3,11 +3,11 @@ open Pixels_graphics
 open Tsdl
 let (let$) = Result.bind
 
-let read_pixels : Unix.file_descr -> pixel list * Unix.sockaddr =
-  let udp_buffer = Bytes.create ((4096 / packet_size) * packet_size) in
+let read_pixels : Unix.file_descr -> pixel list =
+  let buffer = Bytes.create ((4096 / packet_size) * packet_size) in
   fun sock ->
-    let (len, sender) = Unix.recvfrom sock udp_buffer 0 (Bytes.length udp_buffer) [] in
-    pixels_of_bytes udp_buffer len, sender
+    let len = Unix.recv sock buffer 0 (Bytes.length buffer) [] in
+    pixels_of_bytes buffer len
 
 (* server state *)
 
@@ -36,11 +36,23 @@ let register_user_pixel st sender time px =
 
 (* network loop, reading incoming pixels *)
 
-let rec udp_loop (sock : Unix.file_descr) (st : state) =
-  let pxs, sender = read_pixels sock in
-  let now = Unix.gettimeofday () in
-  List.iter (register_user_pixel st sender now) pxs;
-  udp_loop sock st
+let handle_client st addr sock =
+  Unix.setsockopt sock Unix.TCP_NODELAY true;
+  let continue = ref true in
+  while !continue do
+    match read_pixels sock with
+    | [] -> continue := false
+    | pxs ->
+      let now = Unix.gettimeofday () in
+      List.iter (register_user_pixel st addr now) pxs
+  done
+
+let tcp_loop (sock : Unix.file_descr) (st : state) =
+  while true do
+    let sock, addr = Unix.accept sock in
+    ignore (Thread.create (handle_client st addr) sock : Thread.t)
+  done
+
 
 (* drawing a frame *)
 
@@ -110,11 +122,13 @@ let () =
       ~max_age:!max_age ~decay:!decay
   in
 
-  let sock = Unix.(socket PF_INET SOCK_DGRAM 0) in
-  Unix.bind sock Unix.(ADDR_INET (Unix.inet_addr_of_string "0.0.0.0", !port));
+  let sock = Unix.(socket PF_INET SOCK_STREAM 0) in
+  Unix.setsockopt sock SO_REUSEADDR true;
+  Unix.bind sock Unix.(ADDR_INET (Unix.inet_addr_any, !port));
+  Unix.listen sock 16;
   Printf.printf "Listening on port %d...\n%!" !port;
 
-  let _ : unit Domain.t = Domain.spawn (fun () -> udp_loop sock st) in
+  let _ : unit Domain.t = Domain.spawn (fun () -> tcp_loop sock st) in
 
   let main () =
     let$ () = Sdl.init Sdl.Init.video in
