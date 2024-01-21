@@ -3,7 +3,7 @@
 Dependencies: ocaml 5.0, `tsdl`
 
 ``` sh
-$ dune exec -- server/server.exe
+$ dune exec -- server/localnet/server.exe
 # in another terminal, try one of the basic clients:
 $ dune exec -- client/client.exe
 # or go write your own!
@@ -25,11 +25,11 @@ the server to draw one colored pixel:
 - `R`, `G`, `B`: the color of the pixel (the red, green, blue component 
   respectively)
 
-## anti-spam measures (only for `server/localnet`)
+## anti-spam measures (for `server/localnet`)
 
-The server implements some basic rate-limiting / anti-spam measures based on the
-client IP address, tweakable using the `--nb-clients` and `--max-age` options of
-the server.
+The localnet server implements some basic rate-limiting / anti-spam measures
+based on the client IP address, tweakable using the `--nb-clients` and
+`--max-age` options of the server.
 
 - there is a limit on the number of visible pixels sent by the same client;
   after this limit, oldest pixels get removed first. If `--nb-clients` (an
@@ -38,11 +38,15 @@ the server.
 
 - pixels decay and disappear after some time (set by `--max-age`).
 
-## separate receiver/display (`server/{receiver,display}`)
+## separate receiver/display
 
-Allows putting the server receiving pixels on a different computer than the
-pixels display. The output of the receiver should be piped into the input of the
-display.
+The `server/receiver` and `server/display` components are an alternative to
+`server/localnet`.
+
+They make it possible to decouple listening for clients and displaying. The
+receiver (contacted by clients and receiving pixels packets) can be put on a
+different computer than the display. The output of the receiver should be piped
+into the input of the display component, which can e.g. be done through ssh.
 
 Example usage:
 ```
