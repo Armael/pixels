@@ -1,4 +1,4 @@
-# a shared pixel display controllable via UDP
+# a shared pixel display controllable via TCP
 
 Dependencies: ocaml 5.0, `tsdl`
 
@@ -13,7 +13,7 @@ Pass `--help` to the server binary for additional settings.
 
 ## protocol
 
-The server expects UDP packets. An UDP packet should contain one or several
+The server expects TCP packets. An TCP packet should contain one or several
 concatenated *pixel commands*. A pixel command consists of 7 bytes, and tells
 the server to draw one colored pixel:
 
