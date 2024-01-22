@@ -51,9 +51,8 @@ into the input of the display component, which can e.g. be done through ssh.
 Example usage:
 ```
 scp _build/default/server/receiver/receiver.exe you@yourserver
-ssh -t -t you@yourserver ./receiver.exe | dune exec -- server/display/display.exe
+ssh you@yourserver ./receiver.exe | dune exec -- server/display/display.exe
 ```
 
-(`-t -t` seems to be the adequate hack so that cancelling the whole thing with
-^C also kills the receiver process on the server side:
-https://unix.stackexchange.com/a/210356)
+*NB*: be aware that ^C-ing the ssh command will not automatically terminate the
+receiver process on the remote server, you may have to kill it separately.
