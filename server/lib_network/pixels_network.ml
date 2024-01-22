@@ -6,7 +6,7 @@ type pixel = { x : int; y : int; r : int; g : int; b : int }
 let packet_size = 2 (* x *) + 2 (* y *) + 3 (* color *)
 
 let pixel_of_bytes (buf : Bytes.t) (off : int) (len : int) : pixel option =
-  if off + packet_size > len then None else begin
+  if len < packet_size then None else begin
     let x = Bytes.get_uint16_be buf off in
     let y = Bytes.get_uint16_be buf (off + 2) in
     let r = Bytes.get_uint8 buf (off + 4) in
