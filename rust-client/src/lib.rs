@@ -1,6 +1,6 @@
 use std::{
-    io,
-    net::{SocketAddr, UdpSocket},
+    io, io::Write,
+    net::{SocketAddr, TcpStream},
 };
 
 /// A RGB color.
@@ -68,14 +68,13 @@ impl Pixel {
 
 /// Client
 pub struct Client {
-    sock: UdpSocket,
+    stream: TcpStream,
 }
 
 impl Client {
     pub fn new(addr: SocketAddr) -> io::Result<Client> {
-        let sock = UdpSocket::bind("0.0.0.0:1234")?;
-        sock.connect(addr)?;
-        let client = Client { sock };
+        let stream = TcpStream::connect(addr)?;
+        let client = Client { stream };
         Ok(client)
     }
 
@@ -83,7 +82,7 @@ impl Client {
     pub fn draw(&mut self, pixel: Pixel) -> io::Result<()> {
         let mut buf = [0u8; PIXEL_SIZE];
         pixel.write_to_buf(&mut buf);
-        self.sock.send(&buf[..])?;
+        self.stream.write(&buf[..])?;
         Ok(())
     }
 }
