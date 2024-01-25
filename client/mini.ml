@@ -1,5 +1,6 @@
-(* TODO: à modifier par l'addresse IP donnée le jour du TP *)
+(* TODO: à modifier par l'addresse IP et le port donnés le jour du TP *)
 let ip = "127.0.0.1"
+let port = 4242
 
 (* [draw_pixel sock x y r g b] envoie une commande de dessin d'un pixel au serveur :
    - [sock] : le socket sur lequel envoyer le message (du même nom plus bas)
@@ -18,7 +19,7 @@ let draw_pixel sock x y r g b =
 
 let () =
   let sock = Unix.(socket PF_INET SOCK_STREAM 0) in
-  let addr = Unix.(ADDR_INET (inet_addr_of_string ip, 4242)) in
+  let addr = Unix.(ADDR_INET (inet_addr_of_string ip, port)) in
 
   Unix.connect sock addr;
   draw_pixel sock 10 10 255 0 0;

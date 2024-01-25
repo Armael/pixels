@@ -3,8 +3,9 @@ use std::{
     net::{SocketAddr, SocketAddrV4, Ipv4Addr, TcpStream},
 };
 
-/* TODO: à modifier par l'addresse IP donnée le jour du TP */
+/* TODO: à modifier par l'addresse IP et le port donnés le jour du TP */
 static IP : Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+static PORT : u16 = 4242;
 
 /* `draw_pixel(stream, x, y, r, g, b)` envoie une commande de dessin d'un pixel au serveur :
    - `stream` : le stream sur lequel envoyer le message (du même nom dans `main`)
@@ -24,7 +25,7 @@ pub fn draw_pixel(stream: &mut TcpStream, x: u16, y: u16, r: u8, g: u8, b: u8) -
 }
 
 pub fn main() -> io::Result<()> {
-    let addr = SocketAddr::V4(SocketAddrV4::new(IP, 4242));
+    let addr = SocketAddr::V4(SocketAddrV4::new(IP, PORT));
     let mut stream = TcpStream::connect(addr)?;
 
     draw_pixel(&mut stream, 10, 10, 255, 0, 0)?;
